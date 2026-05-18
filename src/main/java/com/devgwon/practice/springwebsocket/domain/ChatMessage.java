@@ -32,6 +32,7 @@ public class ChatMessage {
     @Column(name = "message")
     private String message;
 
+    @Enumerated(EnumType.STRING)
     @Column(name = "chat_type")
     private ChatType chatType;
 
