@@ -23,8 +23,6 @@ public class FileController {
     @PostMapping("/upload")
     public ResponseEntity<FileResponse> upload(@RequestParam("file") MultipartFile file) {
 
-        long size = file.getSize();
-
         //유효성 체크
         if (file == null || file.getOriginalFilename() == null || file.getOriginalFilename().isBlank()) {
             throw new IllegalArgumentException("파일은 필수입니다.");

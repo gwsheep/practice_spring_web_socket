@@ -16,9 +16,6 @@ public class ChatRequest {
     @NotNull(message = "roomId는 필수입니다")
     private Long roomId;
 
-    @NotBlank(message = "sender는 필수입니다")
-    private String sender;
-
     private String message;
 
     private ChatType type;

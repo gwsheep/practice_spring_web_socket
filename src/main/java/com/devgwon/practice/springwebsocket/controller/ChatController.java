@@ -9,6 +9,8 @@ import org.springframework.messaging.handler.annotation.MessageMapping;
 import org.springframework.messaging.simp.SimpMessageHeaderAccessor;
 import org.springframework.stereotype.Controller;
 
+import java.security.Principal;
+
 @Controller
 @RequiredArgsConstructor
 @MessageMapping("/socket")
@@ -17,8 +19,10 @@ public class ChatController {
     private final ChatService chatService;
 
     @MessageMapping("/user/chat")
-    public void send(@Valid ChatRequest req, SimpMessageHeaderAccessor headerAccessor) {
-        chatService.sendChat(req, headerAccessor.getSessionId());
+    public void send(@Valid ChatRequest req,
+                     SimpMessageHeaderAccessor headerAccessor,
+                     Principal principal) {
+        chatService.sendChat(req, headerAccessor.getSessionId(), principal.getName());
     }
 
 }

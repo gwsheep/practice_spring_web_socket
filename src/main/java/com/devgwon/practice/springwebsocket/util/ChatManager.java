@@ -9,10 +9,12 @@ import org.springframework.scheduling.TaskScheduler;
 import org.springframework.stereotype.Component;
 
 import java.time.Instant;
+import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ScheduledFuture;
 
+//단일 WAS에서는 괜찮으나, 다중 환경에서는 Redis 등 활용 필요
 @Component
 @RequiredArgsConstructor
 public class ChatManager {
@@ -22,35 +24,42 @@ public class ChatManager {
     private final SimpMessagingTemplate messagingTemplate;
     private final TaskScheduler taskScheduler;
 
-    //채팅 유저 고유 정보
     private final Map<String, ChatUser> chatUserMap = new ConcurrentHashMap<>();
-    //세션 정보 (채팅 접속중인지 확인)
     private final Map<String, String> sessionMap = new ConcurrentHashMap<>();
-    //leave 지연 정보
     private final Map<String, ScheduledFuture<?>> pendingMap = new ConcurrentHashMap<>();
 
-    //sender는 임시
-    public void enter(Long roomId, String sender, String sessionId) {
+    public void enter(Long roomId, String userName, String sessionId) {
 
-        String key = setKey(roomId, sender);
+        String key = setKey(roomId, userName);
         ScheduledFuture<?> pending = pendingMap.remove(key);
         if(pending != null) {
             pending.cancel(false);
         }
 
         boolean isOnline = chatUserMap.containsKey(key);
-        chatUserMap.put(key, new ChatUser(roomId, sender, sessionId));
+        chatUserMap.put(key, new ChatUser(roomId, userName, sessionId));
         sessionMap.put(sessionId, key);
 
         if(!isOnline) {
-            broadcast(roomId, sender, ChatType.ENTER, sender + "님이 입장하였습니다");
+            broadcast(roomId, userName, ChatType.ENTER, userName + "님이 입장하였습니다");
         }
+
+        broadcastUserList(roomId);
 
     }
 
-    public void leave(Long roomId, String sender, String sessionId) {
+    public List<Long> getActiveRoomsIds() {
+        return chatUserMap.values()
+                            .stream()
+                            .map(ChatUser::getRoomId)
+                            .distinct()
+                            .sorted()
+                            .toList();
+    }
 
-        String key = setKey(roomId, sender);
+    public void leave(Long roomId, String userName, String sessionId) {
+
+        String key = setKey(roomId, userName);
         ScheduledFuture<?> pending = pendingMap.remove(key);
         if(pending != null) {
             pending.cancel(false);
@@ -59,15 +68,15 @@ public class ChatManager {
         chatUserMap.remove(key);
         sessionMap.remove(sessionId);
 
-        broadcast(roomId, sender, ChatType.LEAVE, sender + "님이 퇴장하였습니다");
-
+        broadcast(roomId, userName, ChatType.LEAVE, userName + "님이 퇴장하였습니다");
+        broadcastUserList(roomId);
 
     }
 
     public void disconnect(String sessionId) {
 
         //session 정보나 user 정보가 없을 때
-        String key = sessionMap.remove(sessionId);
+        String key = sessionMap.get(sessionId);
         if(key == null) {
             return;
         }
@@ -95,26 +104,40 @@ public class ChatManager {
         chatUserMap.remove(key);
         pendingMap.remove(key);
 
-        broadcast(chatUser.getRoomId(), chatUser.getSender(), ChatType.LEAVE, chatUser.getSender() + "님이 퇴장하였습니다");
+        broadcast(chatUser.getRoomId(), chatUser.getUserName(), ChatType.LEAVE, chatUser.getUserName() + "님이 퇴장하였습니다");
+        broadcastUserList(chatUser.getRoomId());
 
     }
 
-    private void broadcast(Long roomId, String sender, ChatType type, String message) {
+    private void broadcast(Long roomId, String userName, ChatType type, String message) {
 
         ChatResponse chat = ChatResponse.builder()
-                .roomId(roomId)
-                .sender(sender)
-                .type(type)
-                .message(message)
-                .build();
+                                        .roomId(roomId)
+                                        .userName(userName)
+                                        .type(type)
+                                        .message(message)
+                                        .build();
 
         messagingTemplate.convertAndSend("/topic/rooms/" + roomId, chat);
 
     }
 
+    private void broadcastUserList(Long roomId) {
 
-    private String setKey(Long roomId, String sender) {
-            return roomId + " : " + sender;
+        List<String> users = chatUserMap.values().stream()
+                                        .filter(user -> roomId.equals(user.getRoomId()))
+                                        .map(ChatUser::getUserName)
+                                        .distinct()
+                                        .toList();
+
+        messagingTemplate.convertAndSend("/topic/rooms/" + roomId + "/users", users);
+
+
+    }
+
+
+    private String setKey(Long roomId, String userName) {
+            return roomId + " : " + userName;
     }
 
 }

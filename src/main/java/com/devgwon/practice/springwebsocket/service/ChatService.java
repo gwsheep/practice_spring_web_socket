@@ -8,12 +8,9 @@ import com.devgwon.practice.springwebsocket.enums.ChatType;
 import com.devgwon.practice.springwebsocket.repository.ChatMessageRepository;
 import com.devgwon.practice.springwebsocket.util.ChatManager;
 import lombok.RequiredArgsConstructor;
-import org.springframework.messaging.simp.SimpMessageHeaderAccessor;
 import org.springframework.messaging.simp.SimpMessagingTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
-
-import java.util.Optional;
 
 @Service
 @RequiredArgsConstructor
@@ -26,38 +23,38 @@ public class ChatService {
     private final SimpMessagingTemplate messagingTemplate;
 
     @Transactional
-    public void sendChat(ChatRequest req, String sessionId) {
+    public void sendChat(ChatRequest req, String sessionId, String userName) {
 
         //Chat Type
         ChatType chatType = (req.getType() == null) ? ChatType.TEXT : req.getType();
 
         //Chat Type : ENTER, LEAVE
         if(chatType == ChatType.ENTER) {
-            chatManager.enter(req.getRoomId(), req.getSender(), sessionId);
+            chatManager.enter(req.getRoomId(), userName, sessionId);
             return;
         }
         if(chatType == ChatType.LEAVE) {
-            chatManager.leave(req.getRoomId(), req.getSender(), sessionId);
+            chatManager.leave(req.getRoomId(), userName, sessionId);
             return;
         }
 
         //Create Chat
-        createChat(req, chatType);
+        createChat(req, chatType, userName);
 
     }
 
     @Transactional
-    public void sendChat(ChatRequest req) {
+    public void sendNotice(ChatRequest req, String userName) {
 
         //Chat Type
-        ChatType chatType = (req.getType() == null) ? ChatType.TEXT : req.getType();
+        ChatType chatType = ChatType.NOTICE;
 
         //Create Chat
-        createChat(req, chatType);
+        createChat(req, chatType, userName);
 
     }
 
-    private void createChat(ChatRequest req, ChatType chatType) {
+    private void createChat(ChatRequest req, ChatType chatType, String userName) {
 
         //Chat File
         ChatFile chatFile = null;
@@ -68,7 +65,7 @@ public class ChatService {
         //Chat 저장
         ChatMessage chat = new ChatMessage(
                 req.getRoomId(),
-                req.getSender(),
+                userName,
                 req.getMessage(),
                 chatType,
                 chatFile
@@ -76,17 +73,17 @@ public class ChatService {
         ChatMessage savedChat = chatMessageRepository.save(chat);
 
         //parsing and send
-        ChatResponse chatResponse = toResponse(savedChat, chatFile);
+        ChatResponse chatResponse = toResponse(savedChat, chatFile, userName);
         messagingTemplate.convertAndSend("/topic/rooms/" + req.getRoomId(), chatResponse);
 
     }
 
-    private ChatResponse toResponse(ChatMessage savedChat, ChatFile chatFile) {
+    private ChatResponse toResponse(ChatMessage savedChat, ChatFile chatFile, String userName) {
 
         return ChatResponse.builder()
                 .messageId(savedChat.getId())
                 .roomId(savedChat.getRoomId())
-                .sender(savedChat.getSender())
+                .userName(userName)
                 .message(savedChat.getMessage())
                 .type(savedChat.getChatType())
                 .fileId((chatFile != null) ? chatFile.getId() : null)

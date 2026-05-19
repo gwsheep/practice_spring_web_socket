@@ -1,66 +1,112 @@
-let client = null;
+let stompClient = null;
 let roomSubscription = null;
+let userListSubscription = null;
 let currentRoomId = null;
 
 const STORAGE_KEY_CHAT_SESSION = "chat.session";
 const CHAT_SESSION_TTL_MS = 30 * 60 * 1000;
 
+const CHAT_ROOM_ID_KEY = "chat.roomId";
+
+const WS_BROKER_URL = "ws://localhost:8080/ws";
+const CHAT_PUBLISH_DESTINATION = "/app/socket/user/chat";
+const ROOM_TOPIC_PREFIX = "/topic/rooms/";
+const FILE_UPLOAD_URL = "/socket/file/upload";
+const HISTORY_API_PREFIX = "/api/rooms/";
+const HISTORY_API_SUFFIX = "/messages";
+
+function getAccessToken() {
+    return sessionStorage.getItem("accessToken");
+}
+
+function getCurrentUserName() {
+    const storedUserName = sessionStorage.getItem("userName");
+
+    if (storedUserName) {
+        return storedUserName;
+    }
+
+    return "";
+}
+
 function connect(afterConnectCallback) {
-    if (client && client.active) {
+    const token = getAccessToken();
+
+    if (!token) {
+        alert("로그인 먼저 해주세요.");
+        location.href = "/lobby.html";
+        return;
+    }
+
+    if (stompClient && stompClient.active) {
         console.log("Already connected");
 
-        if (client.connected && typeof afterConnectCallback === "function") {
+        if (stompClient.connected && typeof afterConnectCallback === "function") {
             afterConnectCallback();
         }
 
         return;
     }
 
-    client = new StompJs.Client({
-        brokerURL: "ws://localhost:8080/ws",
+    stompClient = new StompJs.Client({
+        brokerURL: WS_BROKER_URL,
+
+        connectHeaders: {
+            Authorization: "Bearer " + token
+        },
 
         debug: function (str) {
             console.log(str);
         },
 
         onConnect: function () {
-            document.getElementById("connectionStatus").textContent = "CONNECTED";
-            console.log("WebSocket connected");
+            const connectionStatus = document.getElementById("connectionStatus");
+
+            if (connectionStatus) {
+                connectionStatus.textContent = "CONNECTED";
+            }
+
+            console.log("STOMP connected");
 
             if (typeof afterConnectCallback === "function") {
                 afterConnectCallback();
             }
         },
 
+        onWebSocketClose: function () {
+            const connectionStatus = document.getElementById("connectionStatus");
+
+            if (connectionStatus) {
+                connectionStatus.textContent = "DISCONNECTED";
+            }
+
+            console.log("WebSocket closed");
+        },
+
         onDisconnect: function () {
-            document.getElementById("connectionStatus").textContent = "DISCONNECTED";
-            console.log("WebSocket disconnected");
+            const connectionStatus = document.getElementById("connectionStatus");
+
+            if (connectionStatus) {
+                connectionStatus.textContent = "DISCONNECTED";
+            }
+
+            console.log("STOMP disconnected");
         },
 
         onStompError: function (frame) {
-            console.error("STOMP error", frame);
+            console.error("STOMP error:", frame.headers["message"]);
+            console.error("STOMP error detail:", frame.body);
+            alert("WebSocket 인증 또는 연결 오류가 발생했습니다.");
+            location.href = "/lobby.html";
         }
     });
 
-    client.activate();
+    stompClient.activate();
 }
 
-async function joinRoom() {
-    if (!client || !client.connected) {
-        alert("먼저 Connect 버튼을 눌러주세요.");
-        return;
-    }
-
-    const sender = document.getElementById("sender").value.trim();
-    const roomId = document.getElementById("roomId").value.trim();
-
-    if (!sender) {
-        alert("sender를 입력해주세요.");
-        return;
-    }
-
-    if (!roomId) {
-        alert("roomId를 입력해주세요.");
+function subscribeRoom(roomId) {
+    if (!stompClient || !stompClient.connected) {
+        alert("WebSocket이 연결되지 않았습니다.");
         return;
     }
 
@@ -69,68 +115,75 @@ async function joinRoom() {
         roomSubscription = null;
     }
 
-    currentRoomId = roomId;
+    if (userListSubscription) {
+        userListSubscription.unsubscribe();
+        userListSubscription = null;
+    }
 
-    saveChatSession(sender, roomId);
-
-    document.getElementById("currentRoom").textContent = roomId;
-    document.getElementById("messages").innerHTML = "";
-
-    // 이전 메시지 조회 기능 붙일 경우 여기에서 호출
-    await loadHistory(roomId);
-
-    roomSubscription = client.subscribe("/topic/rooms/" + roomId, function (message) {
+    roomSubscription = stompClient.subscribe(ROOM_TOPIC_PREFIX + roomId, function (message) {
         const body = JSON.parse(message.body);
         appendMessage(body);
     });
 
-    client.publish({
-        destination: "/app/socket/user/chat",
-        body: JSON.stringify({
-            roomId: currentRoomId,
-            sender: sender,
-            type: "ENTER",
-            message: sender + "님이 입장했습니다."
-        })
+    userListSubscription = stompClient.subscribe(ROOM_TOPIC_PREFIX + roomId + "/users", function (message) {
+        const users = JSON.parse(message.body);
+        renderOnlineUsers(users);
     });
 
-    console.log("Joined room:", roomId);
+    currentRoomId = roomId;
+
+    const currentRoom = document.getElementById("currentRoom");
+
+    if (currentRoom) {
+        currentRoom.textContent = roomId;
+    }
+
+    console.log("Subscribed room:", roomId);
 }
 
-function saveChatSession(sender, roomId) {
-    const session = {
-        sender: sender,
+async function enterRoom(roomId) {
+    if (!roomId) {
+        alert("roomId가 없습니다.");
+        location.href = "/lobby.html";
+        return;
+    }
+
+    if (!stompClient || !stompClient.connected) {
+        alert("WebSocket이 연결되지 않았습니다.");
+        return;
+    }
+
+    saveChatSession(roomId);
+
+    const messages = document.getElementById("messages");
+
+    if (messages) {
+        messages.innerHTML = "";
+    }
+
+    subscribeRoom(roomId);
+
+    await loadHistory(roomId);
+
+    publishChatMessage({
         roomId: roomId,
-        expiresAt: Date.now() + CHAT_SESSION_TTL_MS
-    }
-    sessionStorage.setItem(STORAGE_KEY_CHAT_SESSION, JSON.stringify(session));
+        type: "ENTER",
+        message: "입장했습니다."
+    });
+
+    console.log("Entered room:", roomId);
 }
 
-function getValidChatSession() {
-    const raw = sessionStorage.getItem(STORAGE_KEY_CHAT_SESSION);
-
-    if (!raw) {
-        return null;
+function publishChatMessage(payload) {
+    if (!stompClient || !stompClient.connected) {
+        alert("WebSocket이 연결되지 않았습니다.");
+        return;
     }
 
-    try {
-        const session = JSON.parse(raw);
-
-        if (!session.sender || !session.roomId || !session.expiresAt) {
-            clearChatSession();
-            return null;
-        }
-
-        if (Date.now() > session.expiresAt) {
-            clearChatSession();
-            return null;
-        }
-
-        return session;
-    } catch (e) {
-        clearChatSession();
-        return null;
-    }
+    stompClient.publish({
+        destination: CHAT_PUBLISH_DESTINATION,
+        body: JSON.stringify(payload)
+    });
 }
 
 function sendMessage() {
@@ -138,8 +191,8 @@ function sendMessage() {
         return;
     }
 
-    const sender = document.getElementById("sender").value.trim();
-    const message = document.getElementById("message").value.trim();
+    const messageInput = document.getElementById("message");
+    const message = messageInput.value.trim();
 
     if (!message) {
         alert("메시지를 입력해주세요.");
@@ -148,17 +201,13 @@ function sendMessage() {
 
     refreshChatSessionExpiration();
 
-    client.publish({
-        destination: "/app/socket/user/chat",
-        body: JSON.stringify({
-            roomId: currentRoomId,
-            sender: sender,
-            type: "TEXT",
-            message: message
-        })
+    publishChatMessage({
+        roomId: currentRoomId,
+        type: "TEXT",
+        message: message
     });
 
-    document.getElementById("message").value = "";
+    messageInput.value = "";
 }
 
 async function sendFile() {
@@ -180,8 +229,11 @@ async function sendFile() {
     formData.append("file", file);
 
     try {
-        const uploadResponse = await fetch("/socket/file/upload", {
+        const uploadResponse = await fetch(FILE_UPLOAD_URL, {
             method: "POST",
+            headers: {
+                Authorization: "Bearer " + getAccessToken()
+            },
             body: formData
         });
 
@@ -191,24 +243,23 @@ async function sendFile() {
         }
 
         const uploadedFile = await uploadResponse.json();
-        const sender = document.getElementById("sender").value.trim();
 
         const type = uploadedFile.contentType && uploadedFile.contentType.startsWith("image/")
             ? "IMAGE"
             : "FILE";
 
-        client.publish({
-            destination: "/app/socket/user/chat",
-            body: JSON.stringify({
-                roomId: currentRoomId,
-                sender: sender,
-                type: type,
-                message: type === "IMAGE" ? "이미지를 보냈습니다." : "파일을 보냈습니다.",
-                fileId: uploadedFile.fileId
-            })
+        publishChatMessage({
+            roomId: currentRoomId,
+            type: type,
+            message: type === "IMAGE" ? "이미지를 보냈습니다." : "파일을 보냈습니다.",
+            fileId: uploadedFile.fileId,
+            fileName: uploadedFile.fileName,
+            fileSize: uploadedFile.fileSize,
+            downloadUrl: uploadedFile.downloadUrl
         });
 
-        fileInput.value = "";
+        clearSelectedFile();
+
     } catch (e) {
         console.error("파일 전송 중 오류:", e);
         alert("파일 전송 중 오류가 발생했습니다.");
@@ -216,28 +267,42 @@ async function sendFile() {
 }
 
 function appendMessage(body) {
+    const messages = document.getElementById("messages");
+
+    if (!messages) {
+        return;
+    }
+
     const li = document.createElement("li");
     li.className = "bubble";
 
     if (body.type === "ENTER") {
-        li.className = "bubble system";
+        li.className = "bubble system enter";
 
         const enter = document.createElement("div");
         enter.textContent = "[입장] " + body.message;
 
         li.appendChild(enter);
-        document.getElementById("messages").appendChild(li);
+        messages.appendChild(li);
+        scrollToBottom();
         return;
     }
 
     if (body.type === "LEAVE") {
-        li.className = "bubble system";
+        const currentUserName = getCurrentUserName();
+
+        if (body.userName === currentUserName) {
+            return;
+        }
+
+        li.className = "bubble system leave";
 
         const leave = document.createElement("div");
         leave.textContent = "[퇴장] " + body.message;
 
         li.appendChild(leave);
-        document.getElementById("messages").appendChild(li);
+        messages.appendChild(li);
+        scrollToBottom();
         return;
     }
 
@@ -248,15 +313,30 @@ function appendMessage(body) {
         notice.textContent = "[공지] " + body.message;
 
         li.appendChild(notice);
-        document.getElementById("messages").appendChild(li);
+        messages.appendChild(li);
+        scrollToBottom();
         return;
     }
 
-    const sender = document.createElement("div");
-    sender.className = "sender";
-    sender.textContent = "[Room " + body.roomId + "] " + body.sender;
+    if (body.type === "CLOSED") {
+        li.className = "bubble system closed";
 
-    li.appendChild(sender);
+        const closed = document.createElement("div");
+        closed.textContent = body.message;
+
+        li.appendChild(closed);
+        messages.appendChild(li);
+        scrollToBottom();
+        return;
+    }
+
+    const currentUserName = getCurrentUserName();
+
+    if (body.userName === currentUserName) {
+        li.className = "bubble my-message";
+    } else {
+        li.className = "bubble other-message";
+    }
 
     if (!body.type || body.type === "TEXT") {
         const text = document.createElement("div");
@@ -285,8 +365,11 @@ function appendMessage(body) {
         download.target = "_blank";
 
         fileBox.appendChild(fileName);
-        fileBox.appendChild(img);
-        fileBox.appendChild(download);
+
+        if (body.downloadUrl) {
+            fileBox.appendChild(img);
+            fileBox.appendChild(download);
+        }
 
         li.appendChild(text);
         li.appendChild(fileBox);
@@ -309,7 +392,10 @@ function appendMessage(body) {
         download.target = "_blank";
 
         fileBox.appendChild(fileInfo);
-        fileBox.appendChild(download);
+
+        if (body.downloadUrl) {
+            fileBox.appendChild(download);
+        }
 
         li.appendChild(text);
         li.appendChild(fileBox);
@@ -321,11 +407,117 @@ function appendMessage(body) {
         li.appendChild(unknown);
     }
 
-    document.getElementById("messages").appendChild(li);
+    messages.appendChild(li);
+    scrollToBottom();
+}
+
+function renderOnlineUsers(users) {
+    const onlineUsers = document.getElementById("onlineUsers");
+
+    if (!onlineUsers) {
+        return;
+    }
+
+    onlineUsers.innerHTML = "";
+
+    if (!users || users.length === 0) {
+        const li = document.createElement("li");
+        li.textContent = "접속자가 없습니다.";
+        onlineUsers.appendChild(li);
+        return;
+    }
+
+    const currentUserName = getCurrentUserName();
+
+    users.forEach(function (user) {
+        const userName = typeof user === "string" ? user : user.userName;
+
+        const li = document.createElement("li");
+        li.textContent = userName || "unknown";
+
+        if (userName === currentUserName) {
+            li.classList.add("me");
+        }
+
+        onlineUsers.appendChild(li);
+    });
+}
+
+function leaveRoom() {
+    if (stompClient && stompClient.connected && currentRoomId) {
+        publishChatMessage({
+            roomId: currentRoomId,
+            type: "LEAVE",
+            message: "퇴장했습니다."
+        });
+    }
+
+    if (roomSubscription) {
+        roomSubscription.unsubscribe();
+        roomSubscription = null;
+    }
+
+    if (userListSubscription) {
+        userListSubscription.unsubscribe();
+        userListSubscription = null;
+    }
+
+    clearChatSession();
+    sessionStorage.removeItem(CHAT_ROOM_ID_KEY);
+
+    currentRoomId = null;
+
+    const currentRoom = document.getElementById("currentRoom");
+    const connectionStatus = document.getElementById("connectionStatus");
+
+    if (currentRoom) {
+        currentRoom.textContent = "NONE";
+    }
+
+    if (connectionStatus) {
+        connectionStatus.textContent = "DISCONNECTED";
+    }
+
+    renderOnlineUsers([]);
+
+    if (stompClient) {
+        stompClient.deactivate();
+        stompClient = null;
+        console.log("Disconnected manually");
+    }
+
+    location.href = "/lobby.html";
+}
+
+async function loadHistory(roomId) {
+    try {
+        const response = await fetch(
+            HISTORY_API_PREFIX + encodeURIComponent(roomId) + HISTORY_API_SUFFIX,
+            {
+                headers: {
+                    Authorization: "Bearer " + getAccessToken()
+                }
+            }
+        );
+
+        if (!response.ok) {
+            console.warn("이전 메시지 조회 실패:", response.status);
+            return;
+        }
+
+        const historyMessages = await response.json();
+
+        historyMessages.forEach(function (message) {
+            appendMessage(message);
+        });
+
+    } catch (e) {
+        console.error("이전 메시지 조회 중 오류:", e);
+    }
 }
 
 function validateChatReady() {
-    if (!client || !client.connected) {
+    if (!stompClient || !stompClient.connected) {
         alert("WebSocket이 연결되지 않았습니다.");
         return false;
     }
@@ -338,49 +530,71 @@ function validateChatReady() {
     return true;
 }
 
+function saveChatSession(roomId) {
+    const session = {
+        roomId: roomId,
+        expiresAt: Date.now() + CHAT_SESSION_TTL_MS
+    };
+
+    sessionStorage.setItem(STORAGE_KEY_CHAT_SESSION, JSON.stringify(session));
+}
+
+function getValidChatSession() {
+    const raw = sessionStorage.getItem(STORAGE_KEY_CHAT_SESSION);
+    const token = getAccessToken();
+
+    if (!raw || !token) {
+        return null;
+    }
+
+    try {
+        const session = JSON.parse(raw);
+
+        if (!session.roomId || !session.expiresAt) {
+            clearChatSession();
+            return null;
+        }
+
+        if (Date.now() > session.expiresAt) {
+            clearChatSession();
+            return null;
+        }
+
+        return session;
+
+    } catch (e) {
+        clearChatSession();
+        return null;
+    }
+}
+
 function clearChatSession() {
     sessionStorage.removeItem(STORAGE_KEY_CHAT_SESSION);
 }
 
 function refreshChatSessionExpiration() {
     const session = getValidChatSession();
+
     if (!session) {
         return;
     }
+
     session.expiresAt = Date.now() + CHAT_SESSION_TTL_MS;
     sessionStorage.setItem(STORAGE_KEY_CHAT_SESSION, JSON.stringify(session));
 }
 
-function disconnect() {
-    const sender = document.getElementById("sender").value.trim();
+function clearSelectedFile() {
+    const fileInput = document.getElementById("fileInput");
+    const selectedFileName = document.getElementById("selectedFileName");
 
-    if (client && client.connected && currentRoomId) {
-        client.publish({
-            destination: "/app/socket/user/chat",
-            body: JSON.stringify({
-                roomId: currentRoomId,
-                sender: sender,
-                type: "LEAVE",
-                message: sender + "님이 퇴장했습니다."
-            })
-        });
+    if (fileInput) {
+        fileInput.value = "";
     }
 
-    if (roomSubscription) {
-        roomSubscription.unsubscribe();
-        roomSubscription = null;
+    if (selectedFileName) {
+        selectedFileName.textContent = "";
+        selectedFileName.style.display = "none";
     }
-
-    if (client) {
-        client.deactivate();
-        console.log("Disconnected manually");
-    }
-
-    clearChatSession();
-
-    currentRoomId = null;
-    document.getElementById("currentRoom").textContent = "NONE";
-    document.getElementById("connectionStatus").textContent = "DISCONNECTED";
 }
 
 function formatFileSize(size) {
@@ -399,37 +613,84 @@ function formatFileSize(size) {
     return (size / 1024 / 1024).toFixed(1) + " MB";
 }
 
-window.addEventListener("load", function () {
+function initFileInput() {
+    const fileInput = document.getElementById("fileInput");
 
-    const session = getValidChatSession();
-
-    if(!session) {
+    if (!fileInput) {
         return;
     }
 
-    document.getElementById("sender").value = session.sender;
-    document.getElementById("roomId").value = session.roomId;
+    fileInput.addEventListener("change", function () {
+        const selectedFileName = document.getElementById("selectedFileName");
 
-    connect(function () {
-        joinRoom();
-    });
-});
-
-async function loadHistory(roomId) {
-    try {
-        const response = await fetch("/api/rooms/" + roomId + "/messages");
-
-        if (!response.ok) {
-            console.warn("이전 메시지 조회 실패:", response.status);
+        if (!selectedFileName) {
             return;
         }
 
-        const historyMessages = await response.json();
-
-        historyMessages.forEach(function (message) {
-            appendMessage(message);
-        });
-    } catch (e) {
-        console.error("이전 메시지 조회 중 오류:", e);
-    }
+        if (this.files && this.files.length > 0) {
+            selectedFileName.textContent = this.files[0].name;
+            selectedFileName.style.display = "inline-block";
+        } else {
+            selectedFileName.textContent = "";
+            selectedFileName.style.display = "none";
+        }
+    });
 }
+
+function scrollToBottom() {
+    const messages = document.getElementById("messages");
+
+    if (!messages) {
+        return;
+    }
+
+    messages.scrollTop = messages.scrollHeight;
+}
+
+function initChatPage() {
+    const token = getAccessToken();
+    const userName = getCurrentUserName();
+    const roomId = sessionStorage.getItem(CHAT_ROOM_ID_KEY);
+
+    if (!token || !userName) {
+        alert("로그인이 필요합니다.");
+        location.href = "/lobby.html";
+        return;
+    }
+
+    if (!roomId) {
+        alert("입장할 방 정보가 없습니다.");
+        location.href = "/lobby.html";
+        return;
+    }
+
+    const currentUser = document.getElementById("currentUser");
+    const currentRoom = document.getElementById("currentRoom");
+
+    if (currentUser) {
+        currentUser.textContent = userName;
+    }
+
+    if (currentRoom) {
+        currentRoom.textContent = roomId;
+    }
+
+    connect(function () {
+        enterRoom(roomId);
+    });
+}
+
+window.addEventListener("beforeunload", function () {
+    if (stompClient && stompClient.connected && currentRoomId) {
+        publishChatMessage({
+            roomId: currentRoomId,
+            type: "LEAVE",
+            message: "퇴장했습니다."
+        });
+    }
+});
+
+document.addEventListener("DOMContentLoaded", function () {
+    initFileInput();
+    initChatPage();
+});

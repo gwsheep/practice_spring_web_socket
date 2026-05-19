@@ -17,7 +17,7 @@ public class ChatResponse {
 
     private Long roomId;
 
-    private String sender;
+    private String userName;
 
     private String message;
 

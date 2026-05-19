@@ -2,45 +2,60 @@
 <html lang="ko">
 <head>
     <meta charset="UTF-8">
-    <title>WebSocket Test</title>
+    <title>WebSocket Chat</title>
     <link rel="stylesheet" href="./chat.css">
 </head>
 <body>
-<h2>Hello</h2>
 
-<div>
-    <label>Sender</label>
-    <input id="sender" placeholder="sender" />
+<div class="chat-header">
+    <div>
+        <h3 class="chat-title">WS chat room</h3>
+    </div>
 </div>
 
-<div>
-    <label>Room ID</label>
-    <input id="roomId" placeholder="room id" />
-    <button onclick="connect()">Connect</button>
-    <button onclick="joinRoom()">Join Room</button>
-    <button onclick="disconnect()">Disconnect</button>
+<div class="status-card chat-room-info-card">
+    <div class="status-grid">
+        <div class="status-item">
+            <span class="status-label">User</span>
+            <span id="currentUser" class="status-badge status-user">NONE</span>
+        </div>
+
+        <div class="status-item">
+            <span class="status-label">Connection</span>
+            <span id="connectionStatus" class="status-badge status-disconnected">DISCONNECTED</span>
+        </div>
+
+        <div class="status-item">
+            <span class="status-label">Current Room</span>
+            <span id="currentRoom" class="status-badge status-room">NONE</span>
+        </div>
+    </div>
+
+    <button class="leave-button status-leave-button" onclick="leaveRoom()">Leave</button>
+</div>
+
+<div class="online-user-card">
+    <h3>user list</h3>
+    <ul id="onlineUsers"></ul>
 </div>
 
 <hr>
-
-<div>
-    <p>Connection Status: <span id="connectionStatus">DISCONNECTED</span></p>
-    <p>Current Room: <span id="currentRoom">NONE</span></p>
-</div>
-
-<hr>
-
-<div>
-    <input id="message" placeholder="message" />
-    <button onclick="sendMessage()">Send</button>
-</div>
-
-<div>
-    <input type="file" id="fileInput" />
-    <button onclick="sendFile()">Send File</button>
-</div>
 
 <ul id="messages"></ul>
+
+<div class="chat-input-area">
+    <div class="message-row">
+        <input id="message" class="message-input" placeholder="메시지를 입력하세요" />
+        <button class="send-button" onclick="sendMessage()">전송</button>
+    </div>
+
+    <div class="file-row">
+        <label for="fileInput" class="file-label">파일 선택</label>
+        <input type="file" id="fileInput" class="file-input" />
+        <span id="selectedFileName" class="selected-file-name"></span>
+        <button class="file-send-button" onclick="sendFile()">파일 전송</button>
+    </div>
+</div>
 
 <script src="https://cdn.jsdelivr.net/npm/@stomp/stompjs@7.0.0/bundles/stomp.umd.min.js"></script>
 <script src="./chat.js"></script>

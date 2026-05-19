@@ -6,6 +6,8 @@ body {
 #messages {
     list-style: none;
     padding: 0;
+    display: flex;
+    flex-direction: column;
 }
 
 .bubble {
@@ -16,7 +18,7 @@ body {
     max-width: 520px;
 }
 
-.sender {
+.userName {
     font-weight: bold;
     margin-bottom: 6px;
 }
@@ -35,4 +37,554 @@ body {
     margin-top: 8px;
     margin-bottom: 8px;
     border-radius: 8px;
+}
+
+/* 공통 시스템 메시지 */
+.bubble.system,
+.bubble.notice {
+    max-width: fit-content;
+    margin: 10px auto;
+    padding: 8px 14px;
+    border-radius: 999px;
+    font-size: 14px;
+    text-align: center;
+    border: none;
+}
+
+/* 입장 메시지 */
+.bubble.system.enter {
+    background: #e8f5e9;
+    color: #2e7d32;
+}
+
+/* 퇴장 메시지 */
+.bubble.system.closed,
+.bubble.system.leave {
+    background: #fff3e0;
+    color: #ef6c00;
+}
+
+/* 공지 메시지 */
+.bubble.notice {
+    background: #e3f2fd;
+    color: #1565c0;
+    font-weight: bold;
+}
+
+/* 내가 보낸 메시지: 오른쪽 */
+.bubble.my-message {
+    align-self: flex-end;
+    background: #dcf8c6;
+    border: none;
+    border-bottom-right-radius: 4px;
+}
+
+/* 상대가 보낸 메시지: 왼쪽 */
+.bubble.other-message {
+    align-self: flex-start;
+    background: beige;
+    border: 1px solid #ddd;
+    border-bottom-left-radius: 4px;
+}
+
+/* 내가 보낸 메시지의 userName는 살짝 연하게 */
+.bubble.my-message .userName {
+    text-align: right;
+    color: #4f6f46;
+}
+
+/* 상대 메시지의 userNamer */
+.bubble.other-message .userName {
+    text-align: left;
+    color: #555;
+}
+
+/* 채팅 입력 영역 */
+.chat-input-area {
+    margin-top: 20px;
+    padding: 14px;
+    border: 1px solid #e5e7eb;
+    border-radius: 18px;
+    background: #fafafa;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
+    max-width: 720px;
+}
+
+/* 메시지 입력 줄 */
+.message-row {
+    display: flex;
+    gap: 8px;
+    margin-bottom: 10px;
+}
+
+/* 메시지 입력창 */
+.message-input {
+    flex: 1;
+    padding: 12px 14px;
+    border: 1px solid #d1d5db;
+    border-radius: 999px;
+    font-size: 15px;
+    outline: none;
+    transition: border-color 0.2s, box-shadow 0.2s;
+}
+
+.message-input:focus {
+    border-color: #7cb342;
+    box-shadow: 0 0 0 3px rgba(124, 179, 66, 0.18);
+}
+
+/* 전송 버튼 */
+.send-button {
+    padding: 0 18px;
+    border: none;
+    border-radius: 999px;
+    background: #7cb342;
+    color: white;
+    font-weight: bold;
+    cursor: pointer;
+    transition: background 0.2s, transform 0.1s;
+}
+
+.send-button:hover {
+    background: #689f38;
+}
+
+.send-button:active {
+    transform: scale(0.96);
+}
+
+/* 파일 첨부 줄 */
+.file-row {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+/* 기본 file input 숨기기 */
+.file-input {
+    display: none;
+}
+
+/* 파일 선택 라벨 버튼 */
+.file-label {
+    padding: 9px 14px;
+    border-radius: 999px;
+    background: #eef2ff;
+    color: #3949ab;
+    font-size: 14px;
+    font-weight: bold;
+    cursor: pointer;
+    border: 1px solid #c5cae9;
+    transition: background 0.2s;
+}
+
+.file-label:hover {
+    background: #e0e7ff;
+}
+
+.selected-file-name {
+    display: none;
+    flex: 1;
+    font-size: 13px;
+    color: #666;
+    overflow: hidden;
+    white-space: nowrap;
+    text-overflow: ellipsis;
+}
+
+/* 파일 전송 버튼 */
+.file-send-button {
+    padding: 9px 14px;
+    border: none;
+    border-radius: 999px;
+    background: #5c6bc0;
+    color: white;
+    font-size: 14px;
+    font-weight: bold;
+    cursor: pointer;
+    transition: background 0.2s, transform 0.1s;
+}
+
+.file-send-button:hover {
+    background: #3f51b5;
+}
+
+.file-send-button:active {
+    transform: scale(0.96);
+}
+
+/* 상단 타이틀 */
+.chat-header {
+    max-width: 720px;
+    margin-bottom: 16px;
+}
+
+.chat-title {
+    margin: 0;
+    font-size: 28px;
+    color: #333;
+}
+
+/* 방 접속 카드 */
+.room-control-card {
+    max-width: 720px;
+    padding: 16px;
+    border: 1px solid #e5e7eb;
+    border-radius: 18px;
+    background: #ffffff;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
+    margin-bottom: 18px;
+}
+
+/* 입력 줄 */
+.control-row {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin-bottom: 12px;
+}
+
+.control-row:last-child {
+    margin-bottom: 0;
+}
+
+/* 라벨 */
+.control-label {
+    width: 70px;
+    font-size: 14px;
+    font-weight: bold;
+    color: #555;
+}
+
+/* 입력창 */
+.control-input {
+    flex: 1;
+    padding: 11px 14px;
+    border: 1px solid #d1d5db;
+    border-radius: 999px;
+    font-size: 14px;
+    outline: none;
+    transition: border-color 0.2s, box-shadow 0.2s;
+}
+
+.control-input:focus {
+    border-color: #7cb342;
+    box-shadow: 0 0 0 3px rgba(124, 179, 66, 0.16);
+}
+
+/* 로그인 버튼 묶음 */
+.login-buttons {
+    display: flex;
+    gap: 8px;
+}
+
+/* Login 버튼 */
+.login-button {
+    padding: 10px 16px;
+    border: none;
+    border-radius: 999px;
+    background: #42a5f5;
+    color: white;
+    font-size: 13px;
+    font-weight: bold;
+    cursor: pointer;
+    transition: background 0.2s, transform 0.1s, box-shadow 0.2s;
+}
+
+.login-button:hover {
+    background: #1e88e5;
+    box-shadow: 0 3px 8px rgba(30, 136, 229, 0.25);
+}
+
+.login-button:active {
+    transform: scale(0.96);
+}
+
+/* 버튼 묶음 */
+.room-buttons {
+    display: flex;
+    gap: 8px;
+}
+
+/* 공통 버튼 */
+.room-buttons button {
+    padding: 10px 14px;
+    border: none;
+    border-radius: 999px;
+    font-size: 13px;
+    font-weight: bold;
+    cursor: pointer;
+    color: white;
+    transition: background 0.2s, transform 0.1s;
+}
+
+.room-buttons button:active {
+    transform: scale(0.96);
+}
+
+/* Connect */
+.connect-button {
+    background: #78909c;
+}
+
+.connect-button:hover {
+    background: #607d8b;
+}
+
+/* Join */
+.join-button {
+    background: #7cb342;
+}
+
+.join-button:hover {
+    background: #689f38;
+}
+
+/* Leave */
+.leave-button {
+    background: #ef5350;
+}
+
+.leave-button:hover {
+    background: #e53935;
+}
+
+.online-user-card {
+    margin: 16px 0;
+    padding: 16px 18px;
+    border: 1px solid #e5e7eb;
+    border-radius: 14px;
+    background: #ffffff;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
+}
+
+.online-user-card h3 {
+    margin: 0 0 12px 0;
+    font-size: 15px;
+    font-weight: 700;
+    color: #374151;
+}
+
+#onlineUsers {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    margin: 0;
+    padding: 0;
+    list-style: none;
+}
+
+#onlineUsers li {
+    padding: 6px 10px;
+    border-radius: 999px;
+    background: #f3f4f6;
+    color: #374151;
+    font-size: 13px;
+    font-weight: 500;
+}
+
+#onlineUsers li::before {
+    content: "●";
+    margin-right: 6px;
+    color: #22c55e;
+    font-size: 10px;
+}
+
+#onlineUsers li.me {
+    background: #dbeafe;
+    color: #1d4ed8;
+    font-weight: 700;
+}
+
+.active-room-card {
+    margin: 16px 0;
+    padding: 16px 18px;
+    border: 1px solid #e5e7eb;
+    border-radius: 14px;
+    background: #ffffff;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
+}
+
+.active-room-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 12px;
+}
+
+.active-room-header h3 {
+    margin: 0;
+    font-size: 15px;
+    font-weight: 700;
+    color: #374151;
+}
+
+.refresh-room-button {
+    padding: 6px 10px;
+    border: none;
+    border-radius: 8px;
+    background: #f3f4f6;
+    color: #374151;
+    cursor: pointer;
+    font-size: 13px;
+}
+
+.refresh-room-button:hover {
+    background: #e5e7eb;
+}
+
+#activeRooms {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    margin: 0;
+    padding: 0;
+    list-style: none;
+}
+
+.active-room-button {
+    padding: 8px 12px;
+    border: 1px solid #dbeafe;
+    border-radius: 999px;
+    background: #eff6ff;
+    color: #1d4ed8;
+    font-weight: 600;
+    cursor: pointer;
+}
+
+.active-room-button:hover {
+    background: #dbeafe;
+}
+
+/* 상태 카드 공통 */
+.status-card {
+    max-width: 720px;
+    margin: 16px 0;
+    padding: 16px 18px;
+    border: 1px solid #e5e7eb;
+    border-radius: 18px;
+    background: #ffffff;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
+}
+
+/* lobby 상태 카드 */
+.lobby-status-card {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+}
+
+/* chat 상태 카드 */
+.chat-room-info-card {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 14px;
+}
+
+/* chat 상태 영역 grid */
+.status-grid {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px;
+    flex: 1;
+}
+
+/* 상태 아이템 */
+.status-item {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    min-height: 34px;
+}
+
+/* 상태 라벨 */
+.status-label {
+    font-size: 13px;
+    font-weight: 700;
+    color: #6b7280;
+}
+
+/* 상태 값 badge 공통 */
+.status-badge {
+    display: inline-flex;
+    align-items: center;
+    min-height: 28px;
+    padding: 5px 11px;
+    border-radius: 999px;
+    font-size: 13px;
+    font-weight: 700;
+    border: 1px solid transparent;
+    white-space: nowrap;
+}
+
+/* 로그인 대기 / 미연결 상태 */
+.status-waiting,
+.status-disconnected {
+    background: #fff3e0;
+    color: #ef6c00;
+    border-color: #ffe0b2;
+}
+
+/* 로그인 완료 상태용 */
+.status-logged-in,
+.status-connected {
+    background: #e8f5e9;
+    color: #2e7d32;
+    border-color: #c8e6c9;
+}
+
+/* 방 상태 */
+.status-room {
+    background: #eff6ff;
+    color: #1d4ed8;
+    border-color: #dbeafe;
+}
+
+/* 사용자 상태 */
+.status-user {
+    background: #f3f4f6;
+    color: #374151;
+    border-color: #e5e7eb;
+}
+
+/* 상태 카드 내부 Leave 버튼 */
+.status-leave-button {
+    padding: 10px 16px;
+    border-radius: 999px;
+    border: none;
+    color: white;
+    font-size: 13px;
+    font-weight: bold;
+    cursor: pointer;
+    white-space: nowrap;
+    transition: background 0.2s, transform 0.1s, box-shadow 0.2s;
+}
+
+.status-leave-button:hover {
+    box-shadow: 0 3px 8px rgba(229, 57, 53, 0.22);
+}
+
+.status-leave-button:active {
+    transform: scale(0.96);
+}
+
+/* 모바일/좁은 화면 대응 */
+@media (max-width: 640px) {
+    .chat-room-info-card {
+        flex-direction: column;
+        align-items: stretch;
+    }
+
+    .status-grid {
+        flex-direction: column;
+    }
+
+    .status-item {
+        justify-content: space-between;
+    }
+
+    .status-leave-button {
+        width: 100%;
+    }
 }

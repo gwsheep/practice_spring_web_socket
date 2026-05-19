@@ -26,8 +26,8 @@ public class ChatMessage {
     @Column(name = "room_id")
     private Long roomId;
 
-    @Column(name = "sender")
-    private String sender;
+    @Column(name = "user_name")
+    private String userName;
 
     @Column(name = "message")
     private String message;
@@ -44,9 +44,9 @@ public class ChatMessage {
     @Column(name = "created_at")
     private LocalDateTime createdAt;
 
-    public ChatMessage(Long roomId, String sender, String message, ChatType chatType, ChatFile chatFile) {
+    public ChatMessage(Long roomId, String userName, String message, ChatType chatType, ChatFile chatFile) {
         this.roomId = roomId;
-        this.sender = sender;
+        this.userName = userName;
         this.message = message;
         this.chatType = chatType;
         this.chatFile = chatFile;

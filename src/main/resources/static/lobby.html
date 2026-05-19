@@ -1,0 +1,58 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <title>WebSocket Lobby</title>
+    <link rel="stylesheet" href="./chat.css">
+</head>
+<body>
+
+<div class="chat-header">
+    <div>
+        <h3 class="chat-title">WS chat lobby</h3>
+    </div>
+</div>
+
+<div class="room-control-card">
+    <div class="control-row">
+        <label for="userName" class="control-label">User</label>
+        <input id="userName" class="control-input" placeholder="사용자 이름" />
+        <div class="login-buttons">
+            <button class="login-button" onclick="login()">Login</button>
+        </div>
+    </div>
+
+    <div class="control-row">
+        <label for="roomId" class="control-label">Room</label>
+        <input id="roomId" class="control-input" placeholder="채팅방 ID" />
+        <div class="room-buttons">
+            <button class="join-button" onclick="enterChatRoom()">Join</button>
+        </div>
+    </div>
+</div>
+
+<hr>
+
+<div class="status-card lobby-status-card">
+    <div class="status-item">
+        <span class="status-label">Login Status</span>
+        <span id="loginStatus" class="status-badge status-waiting">NOT LOGIN</span>
+    </div>
+
+    <div class="status-item">
+        <span class="status-label">Selected Room</span>
+        <span id="selectedRoom" class="status-badge status-room">NONE</span>
+    </div>
+</div>
+
+<div class="active-room-card">
+    <div class="active-room-header">
+        <h3>Chat List</h3>
+        <button class="refresh-room-button" onclick="loadActiveRooms()">새로고침</button>
+    </div>
+    <ul id="activeRooms"></ul>
+</div>
+
+<script src="./lobby.js"></script>
+</body>
+</html>

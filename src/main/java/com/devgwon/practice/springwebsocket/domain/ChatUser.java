@@ -8,7 +8,7 @@ import lombok.Data;
 public class ChatUser {
 
     private Long roomId;
-    private String sender;
+    private String userName;
     private String sessionId;
 
 }
