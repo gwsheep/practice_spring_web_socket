@@ -1,15 +1,13 @@
 package com.devgwon.practice.springwebsocket.dto;
 
 import com.devgwon.practice.springwebsocket.enums.ChatType;
-import lombok.AllArgsConstructor;
-import lombok.Builder;
-import lombok.Data;
-import lombok.Getter;
+import lombok.*;
 
 import java.time.LocalDateTime;
 
 @Getter
 @Builder
+@NoArgsConstructor
 @AllArgsConstructor
 public class ChatResponse {
 

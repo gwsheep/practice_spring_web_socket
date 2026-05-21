@@ -5,6 +5,7 @@ import com.devgwon.practice.springwebsocket.domain.ChatMessage;
 import com.devgwon.practice.springwebsocket.dto.ChatRequest;
 import com.devgwon.practice.springwebsocket.dto.ChatResponse;
 import com.devgwon.practice.springwebsocket.enums.ChatType;
+import com.devgwon.practice.springwebsocket.redis.RedisPublisher;
 import com.devgwon.practice.springwebsocket.repository.ChatMessageRepository;
 import com.devgwon.practice.springwebsocket.util.ChatManager;
 import lombok.RequiredArgsConstructor;
@@ -20,7 +21,7 @@ public class ChatService {
     private final ChatMessageRepository chatMessageRepository;
 
     private final ChatManager chatManager;
-    private final SimpMessagingTemplate messagingTemplate;
+    private final RedisPublisher redisPublisher;
 
     @Transactional
     public void sendChat(ChatRequest req, String sessionId, String userName) {
@@ -74,7 +75,7 @@ public class ChatService {
 
         //parsing and send
         ChatResponse chatResponse = toResponse(savedChat, chatFile, userName);
-        messagingTemplate.convertAndSend("/topic/rooms/" + req.getRoomId(), chatResponse);
+        redisPublisher.publish(chatResponse);
 
     }
 

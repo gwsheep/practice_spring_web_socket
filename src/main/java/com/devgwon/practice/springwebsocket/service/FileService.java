@@ -14,6 +14,7 @@ import org.springframework.web.multipart.MultipartFile;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.util.Set;
 import java.util.UUID;
 
 @Service
@@ -25,7 +26,22 @@ public class FileService {
     @Value("${file.upload-dir}")
     private String uploadDir;
 
+    private final static Set<String> ALLOWED_EXTENSIONS = Set.of(
+            "txt", "png", "jpeg", "jpg", "pdf"
+    );
+
+    private final static Set<String> ALLOWED_MIMES = Set.of(
+            "text/plain",
+            "image/png",
+            "image/jpeg",
+            "application/pdf"
+    );
+
+
     public FileResponse uploadChatFile(MultipartFile files) throws IOException {
+
+        //유효성 검증
+        validate(files);
 
         //File Directory
         Path uploadPath = Path.of(uploadDir);
@@ -66,6 +82,41 @@ public class FileService {
                 "/socket/file/download/" + savedFile.getId()
         );
 
+    }
+
+    private void validate(MultipartFile file) {
+
+        if(file == null) {
+            throw new IllegalArgumentException("파일은 필수입니다.");
+        }
+
+        validateExtension(file);
+        validateMIME(file);
+    }
+
+    private void validateExtension(MultipartFile file) {
+        if(file.getOriginalFilename() == null || file.getOriginalFilename().isBlank()) {
+            throw new IllegalArgumentException("파일 이름은 필수입니다");
+        }
+        String extension = getExtension(file.getOriginalFilename());
+        if(!ALLOWED_EXTENSIONS.contains(extension)) {
+            throw new IllegalArgumentException("허용되지 않는 파일 확장자입니다");
+        }
+    }
+
+    private String getExtension(String fileName) {
+        int lastIndex = fileName.lastIndexOf(".");
+        if(lastIndex == -1) {
+            throw new IllegalArgumentException("파일 확장자가 존재하지 않습니다");
+        }
+        return fileName.substring(lastIndex+1).toLowerCase();
+    }
+
+    private void validateMIME(MultipartFile file) {
+        String contentType = file.getContentType();
+        if(!ALLOWED_MIMES.contains(contentType)) {
+            throw new IllegalArgumentException("허용되지 않는 파일 형식입니다");
+        }
     }
 
     public ChatFile getChatFile(Long fileId) {

@@ -17,9 +17,17 @@ spring:
       hibernate:
         format_sql: true
     show-sql: true
+  data:
+    redis:
+      host: localhost
+      port: 6379
+      password:
+
 
 file:
   upload-dir: C:/devpractice/projectTestFile
 
 jwt:
   secret-key:
+
+kind: Application
