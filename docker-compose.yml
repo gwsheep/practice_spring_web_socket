@@ -1,0 +1,82 @@
+volumes:
+  chat-postgres-data:
+  chat-redis-data:
+
+services:
+  postgres:
+    image: postgres:17
+    container_name: chat-postgres
+    ports:
+      - "5433:5432"
+    environment:
+      POSTGRES_DB: websocketdb
+      POSTGRES_USER:
+      POSTGRES_PASSWORD:
+    volumes:
+      - chat-postgres-data:/var/lib/postgresql/data
+    networks:
+      - chat-network
+  redis:
+    image: redis:8.2
+    container_name: redis-chat
+    ports:
+      - "6379:6379"
+    command: redis-server --requirepass
+    volumes:
+      - chat-redis-data:/data
+    networks:
+      - chat-network
+
+  spring-app-1:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: spring-chat-1
+    ports:
+      - "8080:8080"
+    environment:
+      SERVER_PORT: 8080
+      SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/websocketdb
+      SPRING_DATASOURCE_USERNAME:
+      SPRING_DATASOURCE_PASSWORD:
+
+      SPRING_DATA_REDIS_HOST: redis
+      SPRING_DATA_REDIS_PORT:
+      SPRING_DATA_REDIS_PASSWORD:
+      FILE_UPLOAD_DIR: /app/uploads
+    volumes:
+      - /home/jaekw/lab/NAS/websocket:/app/uploads
+    depends_on:
+      - postgres
+      - redis
+    networks:
+      - chat-network
+
+  spring-app-2:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: spring-chat-2
+    ports:
+      - "8081:8081"
+    environment:
+      SERVER_PORT: 8081
+      SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/websocketdb
+      SPRING_DATASOURCE_USERNAME:
+      SPRING_DATASOURCE_PASSWORD:
+
+      SPRING_DATA_REDIS_HOST: redis
+      SPRING_DATA_REDIS_PORT:
+      SPRING_DATA_REDIS_PASSWORD:
+      FILE_UPLOAD_DIR: /app/uploads
+    volumes:
+      - /home/jaekw/lab/NAS/websocket:/app/uploads
+    depends_on:
+      - postgres
+      - redis
+    networks:
+      - chat-network
+
+networks:
+  chat-network:
+    driver: bridge
